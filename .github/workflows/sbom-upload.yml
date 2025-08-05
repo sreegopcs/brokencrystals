@@ -1,37 +1,35 @@
-name: SBOM Upload
+name: Generate SBOM
 
 on:
-  push:
-    branches: ["stable"]
-  pull_request:
-    branches: ["stable"]
-  workflow_dispatch:
+  workflow_dispatch:   # manually trigger from GitHub UI
+  release:
+    types: [published]
+
+permissions:
+  contents: write
 
 jobs:
   generate-sbom:
-    runs-on: ubuntu-latest
-
-    permissions:
-      contents: read
+    runs-on: ubuntu-latest   # or self-hosted if you already set one up
 
     steps:
-    - name: Checkout source code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-    - name: Install sbom-tool
-      run: |
-        curl -Lo sbom-tool https://github.com/microsoft/sbom-tool/releases/latest/download/sbom-tool-linux-x64
-        chmod +x sbom-tool
+      - name: Generate SBOM using Anchore
+        uses: anchore/sbom-action@v0
+        with:
+          format: cyclonedx-json
+          output-file: sbom.json
 
-    - name: Generate SBOM
-      run: |
-        ./sbom-tool generate -b . -bc . -pn "YourProject" -pv "1.0.0" -ps "GitHub" -nsb "https://sca.example.com" -V Verbose
+      - name: Upload SBOM as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: sbom.json
 
-    - name: Send SBOM to SCA tool
-      env:
-        SCA_API_KEY: ${{ secrets.SCA_API_KEY }}
-      run: |
-        curl -X POST http:// 192.168.225.108:5000/api/upload \
-        -H "Authorization: Bearer $SCA_API_KEY" \
-        -H "Content-Type: application/json" \
-        --data-binary "@_manifest/spdx_2.2/sbom.spdx.json" --insecure
+      - name: Attach SBOM to release
+        if: ${{ github.event_name == 'release' }}
+        uses: softprops/action-gh-release@v1
+        with:
+          files: sbom.json

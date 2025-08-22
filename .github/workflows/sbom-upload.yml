@@ -29,7 +29,3 @@ jobs:
           path: sbom.json
 
       - name: Attach SBOM to release
-        if: ${{ github.event_name == 'release' }}
-        uses: softprops/action-gh-release@v1
-        with:
-          files: sbom.json

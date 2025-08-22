@@ -16,11 +16,17 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
+      # ✅ Add syft config file on the fly (or you can commit .syft.yaml to repo)
+      - name: Create syft config
+        run: |
+          echo "scope: all" > .syft.yaml
+
       - name: Generate SBOM using Anchore
         uses: anchore/sbom-action@v0
         with:
           format: cyclonedx-json
           output-file: sbom.json
+          config: .syft.yaml   # ✅ tell sbom-action to use config
 
       - name: Upload SBOM as artifact
         uses: actions/upload-artifact@v4
@@ -29,3 +35,7 @@ jobs:
           path: sbom.json
 
       - name: Attach SBOM to release
+        if: ${{ github.event_name == 'release' }}
+        uses: softprops/action-gh-release@v1
+        with:
+          files: sbom.json
